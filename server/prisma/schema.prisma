@@ -5,21 +5,209 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-}
-
-model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
-}
-
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean @default(false)
-  author    User    @relation(fields: [authorId], references: [id])
-  authorId  Int
-}
   
+}
+
+// ============================================
+// Multi-Tenant Core
+// ============================================
+
+model Hotel {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  admins       Admin[]
+  categories   MenuCategory[]
+  menuItems    MenuItem[]
+  orders       Order[]
+  payments     Payment[]
+
+  @@map("hotels")
+}
+
+// ============================================
+// Authentication & Authorization
+// ============================================
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String
+  hotelId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  hotel        Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  verifications AdminVerification[]
+
+  @@index([hotelId])
+  @@index([email])
+  @@map("admins")
+}
+
+model AdminVerification {
+  id        Int      @id @default(autoincrement())
+  adminId   Int
+  passcode  String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([passcode])
+  @@map("admin_verifications")
+}
+
+// ============================================
+// Guest (User) Management
+// ============================================
+
+model Guest {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  orders Order[]
+
+  @@index([email])
+  @@map("guests")
+}
+
+// ============================================
+// Menu & Inventory Management
+// ============================================
+
+model MenuCategory {
+  id        Int      @id @default(autoincrement())
+  name      String
+  hotelId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  hotel     Hotel      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  menuItems MenuItem[]
+
+  @@index([hotelId])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal  
+  stock       Int      @default(0) // Inventory quantity
+  categoryId  Int
+  hotelId     Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  category  MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  hotel     Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([hotelId])
+  @@index([categoryId])
+  @@map("menu_items")
+}
+
+// ============================================
+// Orders & Order Management
+// ============================================
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  SERVED
+  COMPLETED
+}
+
+model Order {
+  id          Int        @id @default(autoincrement())
+  guestId     Int
+  hotelId     Int
+  tableNumber String     // User-provided table number (not a managed entity)
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  guest      Guest       @relation(fields: [guestId], references: [id])
+  hotel      Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  payment    Payment?
+
+  @@index([hotelId])
+  @@index([guestId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  menuItemId Int
+  quantity   Int
+  price      Decimal   // Price snapshot at time of order
+  createdAt  DateTime @default(now())
+
+  // Relations
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@map("order_items")
+}
+
+// ============================================
+// Payment Management
+// ============================================
+
+enum PaymentMethod {
+  CARD
+  DIGITAL_WALLET
+  BANK_TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id        Int           @id @default(autoincrement())
+  orderId   Int           @unique // One payment per order
+  hotelId   Int
+  amount    Decimal      
+  method    PaymentMethod
+  status    PaymentStatus @default(PENDING)
+  reference String?       // Payment gateway reference/transaction ID
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
+}
