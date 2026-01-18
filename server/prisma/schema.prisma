@@ -8,9 +8,9 @@ datasource db {
   
 }
 
-// ============================================
+
 // Multi-Tenant Core
-// ============================================
+
 
 model Hotel {
   id        Int      @id @default(autoincrement())
@@ -28,9 +28,9 @@ model Hotel {
   @@map("hotels")
 }
 
-// ============================================
+
 // Authentication & Authorization
-// ============================================
+
 
 model Admin {
   id        Int      @id @default(autoincrement())
@@ -66,9 +66,9 @@ model AdminVerification {
   @@map("admin_verifications")
 }
 
-// ============================================
+
 // Guest (User) Management
-// ============================================
+
 
 model Guest {
   id        Int      @id @default(autoincrement())
@@ -84,9 +84,9 @@ model Guest {
   @@map("guests")
 }
 
-// ============================================
+
 // Menu & Inventory Management
-// ============================================
+
 
 model MenuCategory {
   id        Int      @id @default(autoincrement())
@@ -124,9 +124,9 @@ model MenuItem {
   @@map("menu_items")
 }
 
-// ============================================
+
 // Orders & Order Management
-// ============================================
+
 
 enum OrderStatus {
   PENDING
